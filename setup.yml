@@ -1,0 +1,36 @@
+#
+# usage: ansible-playbook setup.yml -i hosts -K
+#
+- hosts: 127.0.0.1
+  connection: local
+  sudo: yes
+  vars:
+    version: 0.84.7
+    target: /var/lib/glpi
+    packages:
+      - mysql-server
+      - apache2
+      - libapache2-mod-php5
+  tasks:
+    - name: パッケージインストール
+      apt: name={{item}} state=installed
+      with_items: packages
+    - name: ディレクトリ作成
+      file: path={{target}} owner=root group=root mode=755 state=directory
+    - name: ダウンロード
+      get_url: url="https://github.com/fusinv/glpi/archive/{{version}}.tar.gz" dest=/tmp/glpi-{{version}}.tar.gz
+    - name: ファイル展開
+      unarchive: src=/tmp/glpi-{{version}}.tar.gz dest={{target}}
+    - name: ファイル属性設定
+      file: path={{target}}/glpi-{{version}} owner=www-data group=www-data state=directory recurse=yes
+    - name: シンボリックリンク作成
+      file: src=glpi-{{version}} dest={{target}}/release state=link
+#    - name: データベース作成
+    - name: apache設定
+      copy: src=etc/apache.conf dest=/etc/apache2/sites-available/glpi.conf owner=root group=root mode=0644
+    - name: apache設定
+      command: a2ensite glpi.conf
+    - name: apache設定読み込み
+      command: service apache2 reload
+
+# vim: set ts=2 sw=2 et:
